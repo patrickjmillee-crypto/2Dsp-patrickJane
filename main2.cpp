@@ -4,6 +4,8 @@
 #include <vector>
 #include <fstream>
 #include <nlohmann/json.hpp>
+#define RAYGUI_IMPLEMENTATION
+#include "raygui.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -50,6 +52,15 @@ int main()
 
     GameState currentState = state_menu; 
 
+
+    //background variables
+    Texture2D background = LoadTexture("Textures/Background.png");     
+
+
+    Texture2D backgroundClouds = LoadTexture("Textures/Clouds2.png");
+    float scrollingBack = -1000.0f;
+
+    //buttons
     int buttonWidth = 100; 
     int buttonHeight = 50;
     int buttonX = (screen_width / 2) - (buttonWidth / 2);
@@ -57,6 +68,26 @@ int main()
     int buttonToggleWidth = 50; 
     int SettingsbuttonWidth = 200;
 
+
+    //scroll bars 
+    int mousesensitivityx = config["mousesensitivityx"]; int mousesensitivityy = config["mousesensitivityy"];
+    int minValue = 0; 
+    int maxValue = 100;
+    
+    //sccroll bar rectangles
+    Rectangle scrollbounds = {100 , 100 , 200, 20};
+    Rectangle scrollbounds2 = {100, 150, 200, 20};
+    Rectangle scrollbounds3 = {100, 200, 200, 20};
+    Rectangle scrollbounds4 = {100, 250, 200, 20};
+    Rectangle scrollbounds5 = {100, 300, 200, 20};
+    Rectangle scrollbounds6 = {100, 350, 200, 20};
+    Rectangle scrollbounds7 = {100, 400, 200, 20};
+    Rectangle scrollbounds8 = {100, 450, 200, 20};
+    Rectangle scrollbounds9 = {100, 500, 200, 20};
+    Rectangle scrollbounds10 = {100, 550, 200, 20};
+
+
+    //menu button rectangles
     Rectangle startButton = { (float)buttonX, 250.0f, (float)buttonWidth, (float)buttonHeight };
     Rectangle socialButton = { (float)buttonX, 330.0f, (float)buttonWidth, (float)buttonHeight };
     Rectangle settingButton = { (float)buttonX, 410.0f, (float)buttonWidth, (float)buttonHeight };
@@ -70,6 +101,14 @@ int main()
     Rectangle ShowfpsButton = { (float)buttonX, 490.0f, (float)SettingsbuttonWidth, (float)buttonHeight };
     Rectangle backButton = { (float)buttonX, 570.0f, (float)SettingsbuttonWidth, (float)buttonHeight };
     Rectangle ToggleModeButton = { (float)buttonToggleX, 10.0f, (float)buttonToggleWidth, (float)buttonHeight };
+    
+    
+    //controls settings
+    Rectangle walkupButton = { 300, 100, (float)buttonToggleWidth, (float)buttonHeight };
+    Rectangle walkdownButton = { 300, 150, (float)buttonToggleWidth, (float)buttonHeight };
+    Rectangle walkleftButton = { 300, 200, (float)buttonToggleWidth, (float)buttonHeight };
+    Rectangle walkrightButton = { 300, 250, (float)buttonToggleWidth, (float)buttonHeight };
+    Rectangle jumpButton = { 300, 300, (float)buttonToggleWidth, (float)buttonHeight };
 
     Vector2 mousePoint = {0.0f, 0.0f};
     bool exitGame = false;
@@ -88,6 +127,9 @@ int main()
         if(fullscreen == true) {SetConfigFlags(FLAG_FULLSCREEN_MODE);}
         else {ClearWindowState(FLAG_FULLSCREEN_MODE);}
 
+        //background editing 
+        scrollingBack += 0.01f;
+        if(scrollingBack > -500.0f) scrollingBack = -1000; 
         
 
         mousePoint = GetMousePosition();
@@ -155,7 +197,7 @@ int main()
                 }
                 if (CheckCollisionPointRec(mousePoint, ControlsButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
                 {
-                    darkMode = !darkMode;
+                    currentState = state_controls;
                 }
                 // Back to Main Menu functionality
                 if (CheckCollisionPointRec(mousePoint, ShowfpsButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
@@ -191,6 +233,14 @@ int main()
         BeginDrawing();
         if(darkMode == true) ClearBackground(BLACK);
         else ClearBackground(RAYWHITE);
+        DrawTexture(background, 0.0f, 0.0f, WHITE);
+        Vector2 sec = { backgroundClouds.width*2 + scrollingBack, 20 };
+        Vector2 fir = { scrollingBack, 20 };
+        DrawTextureEx(backgroundClouds, fir , 0.0f, 0.75f, WHITE);
+        DrawTextureEx(backgroundClouds, sec , 0.0f, 0.75f, WHITE);
+
+
+
         if(showfps == true) {DrawFPS(75 , 10);}
         
         
@@ -199,7 +249,7 @@ int main()
         {
             case state_menu: 
             {
-                DrawText("Lanterns", screen_width / 2 - MeasureText("Lanterns", 40) / 2, 120, 40, DARKGREEN);
+                DrawText("Lanterns", screen_width / 2 - MeasureText("Lanterns", 40) / 2, 50, 40, DARKGREEN);
 
                 bool hoverstart = CheckCollisionPointRec(mousePoint, startButton);
                 DrawRectangleRec(startButton, hoverstart ? LIGHTGRAY : GRAY);
@@ -273,6 +323,7 @@ int main()
                 DrawRectangle(0, 0, screen_width, screen_height, DARKBLUE);
                 DrawText("GAMEPLAY ACTIVE", screen_width / 2 - MeasureText("GAMEPLAY ACTIVE", 30) / 2, screen_height / 2 - 15, 30, RAYWHITE);
                 DrawText("Press ESC to return to Main Menu", screen_width / 2 - MeasureText("Press ESC to return to Main Menu", 20) / 2, screen_height / 2 + 40, 20, LIGHTGRAY);
+                
             } break; 
 
             case state_paused:
@@ -287,14 +338,24 @@ int main()
             case state_controls:
             {
                 
+                mousesensitivityx = GuiScrollBar(scrollbounds, mousesensitivityx, minValue, maxValue);
+                DrawText(TextFormat("Mouse Sensitivity X: %i", mousesensitivityx), scrollbounds.x, scrollbounds.y + 25, 20, WHITE);
+                mousesensitivityy = GuiScrollBar(scrollbounds2, mousesensitivityy, minValue, maxValue);
+                DrawText(TextFormat("Mouse Sensitivity Y: %i", mousesensitivityy), scrollbounds2.x, scrollbounds2.y + 25, 20, WHITE);
+
+            
+                
+
             }
+            break;
         } 
         if(IsWindowFullscreen()) { fullscreen = true;}
         else { fullscreen = false;}
         EndDrawing();
     }
 
-
+    config["mousesensitivityx"] = mousesensitivityx;
+    config["mousesensitivityy"] = mousesensitivityy;
     config["showfps"] = showfps;
     config["fullscreen"] = fullscreen;
     config["dark_mode"] = darkMode;

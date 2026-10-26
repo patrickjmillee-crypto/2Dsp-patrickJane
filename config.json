@@ -1,6 +1,13 @@
 {
     "dark_mode": true,
     "fullscreen": true,
-    "showfps": true,
-    "vsync": false
+    "jump": "KEY_SPACE",
+    "mousesensitivityx": 72,
+    "mousesensitivityy": 39,
+    "showfps": false,
+    "vsync": true,
+    "walk_down": "KEY_S",
+    "walk_left": "KEY_A",
+    "walk_right": "KEY_D",
+    "walk_up": "KEY_W"
 }
