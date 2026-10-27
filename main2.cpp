@@ -27,6 +27,8 @@ enum GameState {
     state_controls
 };
 
+
+
 int main()
 {
     // First parse the settings.json file
@@ -47,18 +49,24 @@ int main()
 
     float screen_height = 1080;
     float screen_width = 1920;  
-    InitWindow(screen_width, screen_height, "Lanterns");
+    InitWindow(screen_width, screen_height, "Game");
     SetTargetFPS(60);
 
     GameState currentState = state_menu; 
 
 
     //background variables
-    Texture2D background = LoadTexture("Textures/Background.png");     
 
-
-    Texture2D backgroundClouds = LoadTexture("Textures/Clouds2.png");
+    
+    string backgroundCloudsFilePath = "Textures/Clouds2.png";
+    string backgroundFilePath = "Textures/background.png";
+    Texture2D background = LoadTexture("Textures/Background.png");
+    Texture2D backgroundDark = LoadTexture("Textures/BackgroundDark.png");
+    Texture2D backgroundClouds = LoadTexture("Textures/Clouds2.png");   
+    Texture2D backgroundCloudsDark = LoadTexture("Textures/Clouds2Dark.png");   
+      
     float scrollingBack = -1000.0f;
+    
 
     //buttons
     int buttonWidth = 100; 
@@ -126,9 +134,24 @@ int main()
         else {ClearWindowState(FLAG_VSYNC_HINT); SetTargetFPS(0);}
         if(fullscreen == true) {SetConfigFlags(FLAG_FULLSCREEN_MODE);}
         else {ClearWindowState(FLAG_FULLSCREEN_MODE);}
+\
+        
+        
 
         //background editing 
-        scrollingBack += 0.01f;
+
+        if(GetFPS() > 240)
+        {
+            scrollingBack += 0.001f;
+        }
+        if(GetFPS() <= 240)
+        {
+            scrollingBack += .01;
+        }
+        if(GetFPS() <= 120)
+        {
+            scrollingBack += .5;
+        }
         if(scrollingBack > -500.0f) scrollingBack = -1000; 
         
 
@@ -233,11 +256,22 @@ int main()
         BeginDrawing();
         if(darkMode == true) ClearBackground(BLACK);
         else ClearBackground(RAYWHITE);
-        DrawTexture(background, 0.0f, 0.0f, WHITE);
+        
         Vector2 sec = { backgroundClouds.width*2 + scrollingBack, 20 };
         Vector2 fir = { scrollingBack, 20 };
-        DrawTextureEx(backgroundClouds, fir , 0.0f, 0.75f, WHITE);
-        DrawTextureEx(backgroundClouds, sec , 0.0f, 0.75f, WHITE);
+        if(darkMode == false)
+        {   
+            DrawTexture(background, 0.0f, 0.0f, WHITE);
+            DrawTextureEx(backgroundClouds, fir , 0.0f, 0.75f, WHITE);
+            DrawTextureEx(backgroundClouds, sec , 0.0f, 0.75f, WHITE);
+        }
+        else
+        {   
+            DrawTexture(backgroundDark, 0.0f, 0.0f, WHITE);
+            DrawTextureEx(backgroundCloudsDark, fir , 0.0f, 0.75f, WHITE);
+            DrawTextureEx(backgroundCloudsDark, sec , 0.0f, 0.75f, WHITE);
+        }
+        
 
 
 
@@ -249,7 +283,7 @@ int main()
         {
             case state_menu: 
             {
-                DrawText("Lanterns", screen_width / 2 - MeasureText("Lanterns", 40) / 2, 50, 40, DARKGREEN);
+                DrawText("Game", screen_width / 2 - MeasureText("Game", 40) / 2, 50, 40, WHITE);
 
                 bool hoverstart = CheckCollisionPointRec(mousePoint, startButton);
                 DrawRectangleRec(startButton, hoverstart ? LIGHTGRAY : GRAY);
