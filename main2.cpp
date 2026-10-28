@@ -1,5 +1,8 @@
 #include "raylib.h"
 #include <iostream>
+#include <unordered_map>
+#include <functional>
+#include <cstdlib>
 #include <cmath>
 #include <vector>
 #include <fstream>
@@ -10,6 +13,7 @@
 using namespace std;
 using json = nlohmann::json;
 
+
 struct player {
     int velocity;
     float speed; 
@@ -19,6 +23,7 @@ struct player {
 };
 
 enum GameState {
+    state_loading_screen,
     state_menu,
     state_gameplay,
     state_paused, 
@@ -27,6 +32,58 @@ enum GameState {
     state_controls
 };
 
+enum keyaction {
+    moveUp,
+    moveDown, 
+    moveLeft,
+    moveRight,
+    jump,
+    attack,
+    block,
+    interact
+};
+
+char keycodeConvert(int k)
+{
+    return (char)k; 
+}
+
+bool TryRebindKey(int* targetkey)
+{
+    int pressedkey = GetKeyPressed();
+    if(pressedkey != KEY_NULL)
+    {
+        *targetkey = pressedkey;
+        return true; 
+    }
+    return false;
+}
+unordered_map<keyaction, int> keybinds = 
+    {
+        {keyaction::moveUp,      0},
+        {keyaction::moveDown,    0},
+        {keyaction::moveLeft,    0},
+        {keyaction::moveRight,   0},
+        {keyaction::jump,        0},
+        {keyaction::attack,      0},
+        {keyaction::block,       0},
+        {keyaction::interact,    0}
+    };
+const char* getActionName(keyaction action)
+{
+    switch(action)
+    {
+        case keyaction::moveUp:          return "Move Up";
+        case keyaction::moveDown:        return "Move Down";
+        case keyaction::moveLeft:        return "Move Left";
+        case keyaction::moveRight:       return "Move Right";
+        case keyaction::jump:            return "Jump";
+        case keyaction::interact:        return "Interact";
+        case keyaction::attack:          return "Attack";
+        case keyaction::block:           return "Block";
+        default:                         return "Unknown";
+    }
+}
 
 
 int main()
@@ -34,6 +91,10 @@ int main()
     // First parse the settings.json file
     ifstream file("config.json");
     json config = json::parse(file);
+
+    //rebind keybinds from the json file parsed above.
+    keybinds = {{moveUp, config["moveUp"]}, {moveDown, config["moveDown"]}, {moveLeft, config["moveLeft"]}, {moveRight, config["moveRight"]}, {jump, config["jump"]}, {attack , config["attack"]}, {block, config["block"]}
+                , {interact, config["interact"]}};
 
     bool fullscreen = config["fullscreen"];
     bool vsync = config["vsync"];
@@ -50,11 +111,14 @@ int main()
     float screen_height = 1080;
     float screen_width = 1920;  
     InitWindow(screen_width, screen_height, "Game");
+    InitAudioDevice();
     SetTargetFPS(60);
 
     GameState currentState = state_menu; 
-
-
+    //music variables
+    SetMasterVolume(1.0f);
+    Music dayMusic = LoadMusicStream("Audio/day.mp3");
+    Music NightMusic = LoadMusicStream("Audio/night.mp3");
     //background variables
 
     
@@ -69,16 +133,26 @@ int main()
     
 
     //buttons
-    int buttonWidth = 100; 
+    int buttonWidth = 400; 
     int buttonHeight = 50;
     int buttonX = (screen_width / 2) - (buttonWidth / 2);
     int buttonToggleX = 10.0f;
     int buttonToggleWidth = 50; 
-    int SettingsbuttonWidth = 200;
+    int SettingsbuttonWidth = 400;
 
 
-    //scroll bars 
+    //keybinds  --- O(1) using a hashmap
+    
     int mousesensitivityx = config["mousesensitivityx"]; int mousesensitivityy = config["mousesensitivityy"];
+    
+
+
+    //keybind logic variables
+    bool isRebinding = false;
+    keyaction actionbeingmod = keyaction::moveUp;
+
+    
+    //scroll bar variables
     int minValue = 0; 
     int maxValue = 100;
     
@@ -96,10 +170,10 @@ int main()
 
 
     //menu button rectangles
-    Rectangle startButton = { (float)buttonX, 250.0f, (float)buttonWidth, (float)buttonHeight };
-    Rectangle socialButton = { (float)buttonX, 330.0f, (float)buttonWidth, (float)buttonHeight };
-    Rectangle settingButton = { (float)buttonX, 410.0f, (float)buttonWidth, (float)buttonHeight };
-    Rectangle stopButton = { (float)buttonX, 490.0f, (float)buttonWidth, (float)buttonHeight };
+    Rectangle startButton = { (float)buttonX, 350.0f, (float)buttonWidth, (float)buttonHeight };
+    Rectangle socialButton = { (float)buttonX, startButton.y + 75.0f, (float)buttonWidth, (float)buttonHeight };
+    Rectangle settingButton = { (float)buttonX, socialButton.y + 75.0f, (float)buttonWidth, (float)buttonHeight };
+    Rectangle stopButton = { (float)buttonX, settingButton.y + 200.0f, (float)buttonWidth, (float)buttonHeight };
     
     
     //settings Buttons
@@ -112,11 +186,11 @@ int main()
     
     
     //controls settings
-    Rectangle walkupButton = { 300, 100, (float)buttonToggleWidth, (float)buttonHeight };
-    Rectangle walkdownButton = { 300, 150, (float)buttonToggleWidth, (float)buttonHeight };
-    Rectangle walkleftButton = { 300, 200, (float)buttonToggleWidth, (float)buttonHeight };
-    Rectangle walkrightButton = { 300, 250, (float)buttonToggleWidth, (float)buttonHeight };
-    Rectangle jumpButton = { 300, 300, (float)buttonToggleWidth, (float)buttonHeight };
+    Rectangle walkupButton = { 400, 100, (float)SettingsbuttonWidth, (float)buttonHeight };
+    Rectangle walkdownButton = { 400, walkupButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
+    Rectangle walkleftButton = { 400, walkdownButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
+    Rectangle walkrightButton = { 400, walkleftButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
+    Rectangle jumpButton = {400 , walkrightButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
 
     Vector2 mousePoint = {0.0f, 0.0f};
     bool exitGame = false;
@@ -125,6 +199,7 @@ int main()
 
     //checking settings needed to run before opening window
     
+    SetMusicVolume(dayMusic, 1.0f);
     
 
     while (!WindowShouldClose() && !exitGame)
@@ -134,9 +209,20 @@ int main()
         else {ClearWindowState(FLAG_VSYNC_HINT); SetTargetFPS(0);}
         if(fullscreen == true) {SetConfigFlags(FLAG_FULLSCREEN_MODE);}
         else {ClearWindowState(FLAG_FULLSCREEN_MODE);}
-\
-        
-        
+
+        UpdateMusicStream(NightMusic);
+        UpdateMusicStream(dayMusic);
+
+        if(isRebinding)
+        {
+            int* keyptr = &keybinds[actionbeingmod];
+
+            if(TryRebindKey(keyptr))
+            {
+                isRebinding = false;
+            }
+        }
+
 
         //background editing 
 
@@ -240,9 +326,35 @@ int main()
 
             case state_controls:
             {
+                if(CheckCollisionPointRec(mousePoint, walkdownButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    isRebinding = true; 
+                    actionbeingmod = keyaction::moveDown;
+                }
+                if(CheckCollisionPointRec(mousePoint, walkupButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    isRebinding = true; 
+                    actionbeingmod = keyaction::moveUp;
+                }
+                if(CheckCollisionPointRec(mousePoint, walkleftButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    isRebinding = true; 
+                    actionbeingmod = keyaction::moveLeft;
+                }
+                if(CheckCollisionPointRec(mousePoint, walkrightButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    isRebinding = true; 
+                    actionbeingmod = keyaction::moveRight;
+                }
+                if(CheckCollisionPointRec(mousePoint, jumpButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    isRebinding = true; 
+                    actionbeingmod = keyaction::jump;
+                }
 
             } break; 
         }
+
         vsc = vsync ? "-- True" : "-- False";
         vsc_c = vsc.c_str();
         fsc = fullscreen ? "-- True" : "-- False";
@@ -254,8 +366,15 @@ int main()
 
         // Drawing Switch
         BeginDrawing();
-        if(darkMode == true) ClearBackground(BLACK);
-        else ClearBackground(RAYWHITE);
+        if(darkMode == true) 
+        {
+            ClearBackground(BLACK);
+            
+        }
+        else 
+        {
+            ClearBackground(RAYWHITE);
+        }
         
         Vector2 sec = { backgroundClouds.width*2 + scrollingBack, 20 };
         Vector2 fir = { scrollingBack, 20 };
@@ -266,10 +385,15 @@ int main()
             DrawTextureEx(backgroundClouds, sec , 0.0f, 0.75f, WHITE);
         }
         else
-        {   
+        {
             DrawTexture(backgroundDark, 0.0f, 0.0f, WHITE);
             DrawTextureEx(backgroundCloudsDark, fir , 0.0f, 0.75f, WHITE);
             DrawTextureEx(backgroundCloudsDark, sec , 0.0f, 0.75f, WHITE);
+        }
+
+        if(isRebinding)
+        {
+            DrawText(TextFormat("Press any key to rebind: %s", getActionName(actionbeingmod)), 200, 200, 20, RED );
         }
         
 
@@ -301,8 +425,8 @@ int main()
                 DrawText("Settings", (int)(settingButton.x + (buttonWidth / 2) - MeasureText("Settings", 20) / 2), (int)(settingButton.y + 15), 20, hoverSettings ? BLACK : WHITE);
 
                 bool hoverExit = CheckCollisionPointRec(mousePoint, stopButton);
-                DrawRectangleRec(stopButton, hoverExit ? LIGHTGRAY : GRAY);
-                DrawRectangleLinesEx(stopButton, 2, DARKGRAY);
+                DrawRectangleRec(stopButton, hoverExit ? PINK : DARKPURPLE);
+                DrawRectangleLinesEx(stopButton, 2, PURPLE);
                 DrawText("EXIT", (int)(stopButton.x + (buttonWidth / 2) - MeasureText("EXIT", 20) / 2), (int)(stopButton.y + 15), 20, hoverExit ? BLACK : WHITE);
 
                 // Keep Toggle Mode button visible on menu
@@ -377,6 +501,31 @@ int main()
                 mousesensitivityy = GuiScrollBar(scrollbounds2, mousesensitivityy, minValue, maxValue);
                 DrawText(TextFormat("Mouse Sensitivity Y: %i", mousesensitivityy), scrollbounds2.x, scrollbounds2.y + 25, 20, WHITE);
 
+                bool hoverWalkdown = CheckCollisionPointRec(mousePoint, walkdownButton);
+                DrawRectangleRec(walkdownButton, hoverWalkdown ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(walkdownButton, 2, DARKGRAY);
+                DrawText(TextFormat("Walk Down [KEY]:  %c", keycodeConvert(keybinds.at(moveDown))), (int)(walkdownButton.x + 10), (int)(walkdownButton.y + 15), 20, hoverWalkdown ? BLACK : WHITE);
+
+                bool hoverWalkup = CheckCollisionPointRec(mousePoint, walkupButton);
+                DrawRectangleRec(walkupButton, hoverWalkup ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(walkupButton, 2, DARKGRAY);
+                DrawText(TextFormat("Walk Down [KEY]:  %c", keycodeConvert(keybinds.at(moveUp))), (int)(walkupButton.x + 10), (int)(walkupButton.y + 15), 20, hoverWalkup ? BLACK : WHITE);
+
+                bool hoverWalkleft = CheckCollisionPointRec(mousePoint, walkleftButton);
+                DrawRectangleRec(walkleftButton, hoverWalkleft ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(walkleftButton, 2, DARKGRAY);
+                DrawText(TextFormat("Walk Down [KEY]:  %c", keycodeConvert(keybinds.at(moveLeft))), (int)(walkleftButton.x + 10), (int)(walkleftButton.y + 15), 20, hoverWalkleft ? BLACK : WHITE);
+
+                bool hoverWalkright = CheckCollisionPointRec(mousePoint, walkrightButton);
+                DrawRectangleRec(walkrightButton, hoverWalkright ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(walkrightButton, 2, DARKGRAY);
+                DrawText(TextFormat("Walk Down [KEY]:  %c", keycodeConvert(keybinds.at(moveRight))), (int)(walkrightButton.x + 10), (int)(walkrightButton.y + 15), 20, hoverWalkright ? BLACK : WHITE);
+
+                bool hoverjump = CheckCollisionPointRec(mousePoint, jumpButton);
+                DrawRectangleRec(jumpButton, hoverjump ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(jumpButton, 2, DARKGRAY);
+                DrawText(TextFormat("Jump [KEY]:  %c", keycodeConvert(keybinds.at(jump))), (int)(jumpButton.x + 10), (int)(jumpButton.y + 15), 20, hoverjump ? BLACK : WHITE);
+
             
                 
 
@@ -394,6 +543,14 @@ int main()
     config["fullscreen"] = fullscreen;
     config["dark_mode"] = darkMode;
     config["vsync"] = vsync;
+    config["moveDown"] = (int)keybinds.at(moveDown);
+    config["moveUp"] = (int)keybinds.at(moveUp);
+    config["moveLeft"] = (int)keybinds.at(moveLeft);
+    config["moveRight"] = (int)keybinds.at(moveRight);
+    config["jump"] = (int)keybinds.at(jump);
+    config["interact"] = (int)keybinds.at(interact);
+    config["attack"] = (int)keybinds.at(attack);
+    config["block"] = (int)keybinds.at(block);
 
     ofstream outFile("config.json");
     if(!outFile.is_open())
