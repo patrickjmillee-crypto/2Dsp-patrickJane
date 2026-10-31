@@ -6,16 +6,14 @@ enum MaterialType {
     stone,
     wood,
     mud
-}
+};
 struct tile 
 {
+    Texture2D texture;
     int id; 
-    MaterialType material;
     bool isSolid; 
-}
-
-
-
+    tile(Texture2D t, int i, bool is) : texture(t) , id(i) , isSolid(is) {}
+};
 
 
 
@@ -25,7 +23,7 @@ class gameClock
 {
 private:
     using Clock = chrono::steady_clock;
-    using timePoint - chrono::time_point<Clock>;
+    using timePoint = chrono::time_point<Clock>;
     using duration = chrono::duration<float>;
 
     timePoint m_startTime;
@@ -37,7 +35,7 @@ public:
     gameClock()
     : m_totalgameplayTime(0.0f), m_isPaused(true)
     {
-        m_startTime = Clock::now():
+        m_startTime = Clock::now();
         m_lastFrameTime = m_startTime; 
     }
 
@@ -46,7 +44,7 @@ public:
         if(m_isPaused)
         {
             m_isPaused = false;
-            m_lastFrametime = Clock::now();
+            m_lastFrameTime = Clock::now();
         }
     }
 
@@ -58,7 +56,7 @@ public:
     float update() 
     {
         timePoint currentFrameTime = Clock::now();
-        duration frameDuration - currentFrameTime - m_lastFrameTime; 
+        duration frameDuration = currentFrameTime - m_lastFrameTime; 
         m_lastFrameTime = currentFrameTime; 
 
         float deltaTime = frameDuration.count();
@@ -72,7 +70,7 @@ public:
     }
     float getTotatlGameplayTime() const {return m_totalgameplayTime;}
     bool isPaused() const {return m_isPaused;}
-}
+};
 
 //basic explanation of the gameClock class
 //initialize the gameClass object in the main before the loop 
@@ -87,7 +85,7 @@ public:
 
 //-------------------------------------------------
 //World Class 
-Class world
+class world
 {
 private:
     gameClock worldClock;
@@ -114,24 +112,26 @@ public:
 
     
     
-}
-
+};
 
 
 struct player
-{
-
-}
+{   
+    float x;
+    float y;
+    float height; 
+    float width;
+};
 
 struct EnvironmentObject
 {
-    Rectanlge rect; 
+    Rectangle rect; 
     MaterialType material;
 };
 
 MaterialType checkfloorMaterial(player mainp, vector<EnvironmentObject>& worldObjects)
 {
-    Rectangle feetSensor = {mainp.position.x , mainp.position.y + mainp.height, mainp.width, 2};
+    Rectangle feetSensor = {mainp.x , mainp.y + mainp.height, mainp.width, 2};
 
     for(const auto& obj : worldObjects)
     {
@@ -141,4 +141,4 @@ MaterialType checkfloorMaterial(player mainp, vector<EnvironmentObject>& worldOb
         }
     }
     return dirt;
-}
+};

@@ -9,6 +9,7 @@
 #include <nlohmann/json.hpp>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
+//#include "gameplay.h"
 
 using namespace std;
 using json = nlohmann::json;
@@ -84,14 +85,14 @@ const char* getActionName(keyaction action)
         default:                         return "Unknown";
     }
 }
-
+   
 
 int main()
 {
     // First parse the settings.json file
     ifstream file("config.json");
     json config = json::parse(file);
-
+    float increment = 0.1;
     //rebind keybinds from the json file parsed above.
     keybinds = {{moveUp, config["moveUp"]}, {moveDown, config["moveDown"]}, {moveLeft, config["moveLeft"]}, {moveRight, config["moveRight"]}, {jump, config["jump"]}, {attack , config["attack"]}, {block, config["block"]}
                 , {interact, config["interact"]}};
@@ -101,29 +102,31 @@ int main()
     bool darkMode = config["dark_mode"];
     bool showfps = config["showfps"];
 
-    string vsc = "";
+
     const char* vsc_c;
-    string fsc = "";
     const char* fsc_c;
-    string sfps = "";
     const char* sfps_c;
 
+    //initializing screen variables
+    if(fullscreen == true) {SetConfigFlags(FLAG_FULLSCREEN_MODE);}
+    else {ClearWindowState(FLAG_FULLSCREEN_MODE);}
+    if(vsync == true) {SetConfigFlags(FLAG_VSYNC_HINT);}
+    else {ClearWindowState(FLAG_VSYNC_HINT);}
     float screen_height = 1080;
     float screen_width = 1920;  
     InitWindow(screen_width, screen_height, "Game");
     InitAudioDevice();
-    SetTargetFPS(60);
-
+    SetTargetFPS(0);
+    auto CurrentFps = GetFPS();
     GameState currentState = state_menu; 
+    
     //music variables
     SetMasterVolume(1.0f);
     Music dayMusic = LoadMusicStream("Audio/day.mp3");
     Music NightMusic = LoadMusicStream("Audio/night.mp3");
-    //background variables
 
-    
-    string backgroundCloudsFilePath = "Textures/Clouds2.png";
-    string backgroundFilePath = "Textures/background.png";
+    //background texture assignments
+
     Texture2D background = LoadTexture("Textures/Background.png");
     Texture2D backgroundDark = LoadTexture("Textures/BackgroundDark.png");
     Texture2D backgroundClouds = LoadTexture("Textures/Clouds2.png");   
@@ -168,7 +171,6 @@ int main()
     Rectangle scrollbounds9 = {100, 500, 200, 20};
     Rectangle scrollbounds10 = {100, 550, 200, 20};
 
-
     //menu button rectangles
     Rectangle startButton = { (float)buttonX, 350.0f, (float)buttonWidth, (float)buttonHeight };
     Rectangle socialButton = { (float)buttonX, startButton.y + 75.0f, (float)buttonWidth, (float)buttonHeight };
@@ -199,16 +201,16 @@ int main()
 
     //checking settings needed to run before opening window
     
-    SetMusicVolume(dayMusic, 1.0f);
+    SetMusicVolume(dayMusic, 0.01f);
+    SetMusicVolume(NightMusic, 0.00f);
     
 
     while (!WindowShouldClose() && !exitGame)
     {
 
-        if(vsync == true) {SetConfigFlags(FLAG_VSYNC_HINT); SetTargetFPS(MonitorRefreshRate);}
-        else {ClearWindowState(FLAG_VSYNC_HINT); SetTargetFPS(0);}
-        if(fullscreen == true) {SetConfigFlags(FLAG_FULLSCREEN_MODE);}
-        else {ClearWindowState(FLAG_FULLSCREEN_MODE);}
+        if(vsync == true) { SetTargetFPS(MonitorRefreshRate);}
+        
+
 
         UpdateMusicStream(NightMusic);
         UpdateMusicStream(dayMusic);
@@ -225,19 +227,7 @@ int main()
 
 
         //background editing 
-
-        if(GetFPS() > 240)
-        {
-            scrollingBack += 0.001f;
-        }
-        if(GetFPS() <= 240)
-        {
-            scrollingBack += .01;
-        }
-        if(GetFPS() <= 120)
-        {
-            scrollingBack += .5;
-        }
+        scrollingBack += 10 * GetFrameTime();
         if(scrollingBack > -500.0f) scrollingBack = -1000; 
         
 
@@ -355,12 +345,10 @@ int main()
             } break; 
         }
 
-        vsc = vsync ? "-- True" : "-- False";
-        vsc_c = vsc.c_str();
-        fsc = fullscreen ? "-- True" : "-- False";
-        fsc_c = fsc.c_str();
-        sfps = showfps ? "-- True" : "-- False";
-        sfps_c = sfps.c_str();
+
+        vsc_c = vsync ? "Vsync: True" : "Vsync: False";
+        fsc_c  = fullscreen ? "Fullscreen: True" : "Fullscreen: False";
+        sfps_c = showfps ? "Show FPS: True" : "Show FPS: False";
 
 
 
@@ -380,12 +368,39 @@ int main()
         Vector2 fir = { scrollingBack, 20 };
         if(darkMode == false)
         {   
+            if(!IsMusicStreamPlaying(dayMusic))
+            {
+                if(GetMusicTimePlayed(dayMusic) < 100.0f)
+                {
+                    increment += .01f;
+                    if(increment < 1.0)
+                    {
+                        SetMusicVolume(dayMusic, increment);
+                    }
+                }
+                PlayMusicStream(dayMusic);
+            }
+            
+            StopMusicStream(NightMusic);
             DrawTexture(background, 0.0f, 0.0f, WHITE);
             DrawTextureEx(backgroundClouds, fir , 0.0f, 0.75f, WHITE);
             DrawTextureEx(backgroundClouds, sec , 0.0f, 0.75f, WHITE);
         }
         else
         {
+            if(!IsMusicStreamPlaying(NightMusic)){
+                if(GetMusicTimePlayed(NightMusic) < 10.0f)
+                {
+                    increment += .01f;
+                    if(increment < 1.0)
+                    {
+                        SetMusicVolume(NightMusic, increment);
+                    }
+                }
+                PlayMusicStream(NightMusic);
+            }
+            StopMusicStream(dayMusic);
+            
             DrawTexture(backgroundDark, 0.0f, 0.0f, WHITE);
             DrawTextureEx(backgroundCloudsDark, fir , 0.0f, 0.75f, WHITE);
             DrawTextureEx(backgroundCloudsDark, sec , 0.0f, 0.75f, WHITE);
@@ -396,8 +411,6 @@ int main()
             DrawText(TextFormat("Press any key to rebind: %s", getActionName(actionbeingmod)), 200, 200, 20, RED );
         }
         
-
-
 
         if(showfps == true) {DrawFPS(75 , 10);}
         
@@ -440,6 +453,10 @@ int main()
 
             case state_setting: 
             {
+                
+                DrawRectangle(0, ((int)GetScreenHeight()/2 - (backButton.y - FullscreenButton.y)), (int)GetScreenWidth(), backButton.y - FullscreenButton.y + 125,Fade(BLACK,.5f));
+
+                
                 DrawText("Settings Menu", screen_width / 2 - MeasureText("Settings Menu", 40) / 2, 120, 40, DARKGREEN);
 
                 bool hoverToggleMode = CheckCollisionPointRec(mousePoint, ToggleModeButton);
@@ -450,14 +467,14 @@ int main()
                 bool hoverFullscreen = CheckCollisionPointRec(mousePoint, FullscreenButton);
                 DrawRectangleRec(FullscreenButton, hoverFullscreen ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(FullscreenButton, 2, DARKGRAY);
-                DrawText("Fullscreen", (int)(FullscreenButton.x + (SettingsbuttonWidth / 2) - MeasureText("Fullscreen", 20) / 2), (int)(FullscreenButton.y + 15), 20, hoverFullscreen ? BLACK : WHITE );
-                DrawText((fsc_c), (int)(FullscreenButton.x + (SettingsbuttonWidth) + 10), (int)(FullscreenButton.y + 15), 20, GREEN);
+                DrawText(fsc_c, (int)(FullscreenButton.x + (SettingsbuttonWidth / 2) - MeasureText("Fullscreen", 20) / 2), (int)(FullscreenButton.y + 15), 20, hoverFullscreen ? BLACK : WHITE );
+                
 
                 bool hoverVsync = CheckCollisionPointRec(mousePoint, VsyncButton);
                 DrawRectangleRec(VsyncButton, hoverVsync ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(VsyncButton, 2, DARKGRAY);
-                DrawText("Vsync", (int)(VsyncButton.x + (SettingsbuttonWidth / 2) - MeasureText("Vsync", 20) / 2), (int)(VsyncButton.y + 15), 20, hoverVsync ? BLACK : WHITE);
-                DrawText((vsc_c), (int)(VsyncButton.x + (SettingsbuttonWidth) + 10), (int)(VsyncButton.y + 15), 20, GREEN);
+                DrawText(vsc_c, (int)(VsyncButton.x + (SettingsbuttonWidth / 2) - MeasureText("Vsync", 20) / 2), (int)(VsyncButton.y + 15), 20, hoverVsync ? BLACK : WHITE);
+                
 
                 bool hoverControls = CheckCollisionPointRec(mousePoint, ControlsButton);
                 DrawRectangleRec(ControlsButton, hoverControls ? LIGHTGRAY : GRAY);
@@ -467,13 +484,16 @@ int main()
                 bool hoverShowfps = CheckCollisionPointRec(mousePoint, ShowfpsButton);
                 DrawRectangleRec(ShowfpsButton, hoverShowfps ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(ShowfpsButton, 2, DARKGRAY);
-                DrawText("ShowFPS?", (int)(ShowfpsButton.x + (SettingsbuttonWidth / 2) - MeasureText("ShowFPS?", 20) / 2), (int)(ShowfpsButton.y + 15), 20, hoverShowfps ? BLACK : WHITE);
-                DrawText((sfps_c), (int)(ShowfpsButton.x + (SettingsbuttonWidth) + 10), (int)(ShowfpsButton.y + 15), 20, GREEN);
+                DrawText(sfps_c, (int)(ShowfpsButton.x + (SettingsbuttonWidth / 2) - MeasureText("ShowFPS?", 20) / 2), (int)(ShowfpsButton.y + 15), 20, hoverShowfps ? BLACK : WHITE);
+                
                 // Back Button
                 bool hoverBack = CheckCollisionPointRec(mousePoint, backButton);
                 DrawRectangleRec(backButton, hoverBack ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(backButton, 2, DARKGRAY);
                 DrawText("Back", (int)(backButton.x + (SettingsbuttonWidth / 2) - MeasureText("Back", 20) / 2), (int)(backButton.y + 15), 20, hoverBack ? BLACK : WHITE);
+
+                
+
             } break;
 
             case state_gameplay: 
@@ -556,7 +576,6 @@ int main()
     if(!outFile.is_open())
     {
         cerr << "Could not open file config.json\n";
-        return 1;
     }
     outFile << std::setw(4) << config << "\n";
     outFile.close();

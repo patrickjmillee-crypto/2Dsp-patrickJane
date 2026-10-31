@@ -1,7 +1,7 @@
 {
     "attack": 1,
     "block": 1,
-    "dark_mode": false,
+    "dark_mode": true,
     "fullscreen": true,
     "interact": 1,
     "jump": 91,
@@ -11,6 +11,6 @@
     "moveLeft": 83,
     "moveRight": 93,
     "moveUp": 65,
-    "showfps": true,
+    "showfps": false,
     "vsync": true
 }

@@ -10,9 +10,10 @@
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
 #include <chrono>
-
+using namespace std; 
 #pragma once 
-
+enum MaterialType;
+struct tile; 
 struct enchant;
 struct weapon;
 struct tool;
