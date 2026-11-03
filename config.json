@@ -1,13 +1,16 @@
 {
+    "attack": 1,
+    "block": 1,
     "dark_mode": true,
     "fullscreen": true,
-    "jump": "KEY_SPACE",
-    "mousesensitivityx": 85,
-    "mousesensitivityy": 63,
-    "showfps": true,
-    "vsync": true,
-    "walk_down": "KEY_S",
-    "walk_left": "KEY_A",
-    "walk_right": "KEY_D",
-    "walk_up": "KEY_W"
+    "interact": 1,
+    "jump": 91,
+    "mousesensitivityx": 50,
+    "mousesensitivityy": 89,
+    "moveDown": 68,
+    "moveLeft": 83,
+    "moveRight": 93,
+    "moveUp": 65,
+    "showfps": false,
+    "vsync": true
 }
