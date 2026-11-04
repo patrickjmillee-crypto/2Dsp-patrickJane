@@ -15,16 +15,10 @@ using namespace std;
 using json = nlohmann::json;
 
 
-struct player {
-    int velocity;
-    float speed; 
-    float jumpHeight;
-    float height;
-    float width;
-};
+
 
 enum GameState {
-    state_loading_screen,
+    state_loading_screen = 0 ,
     state_menu,
     state_gameplay,
     state_paused, 
@@ -85,6 +79,7 @@ const char* getActionName(keyaction action)
         default:                         return "Unknown";
     }
 }
+// this function allows for drawbuttons to be repeatable and easy to read in the main code
    
 
 int main()
@@ -139,7 +134,7 @@ int main()
     //buttons
     float buttonWidth = 400; 
     float buttonHeight = 50;
-    float buttonX = (screen_width / 2) - (buttonWidth / 2);
+    float buttonX = (screen_width / 2) - (buttonWidth / 2 );
     float buttonToggleX = 10.0f;
     float buttonToggleWidth = 50; 
     float SettingsbuttonWidth = 400;
@@ -194,6 +189,7 @@ int main()
     Rectangle walkleftButton = { 400, walkdownButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
     Rectangle walkrightButton = { 400, walkleftButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
     Rectangle jumpButton = {400 , walkrightButton.y + 75, (float)SettingsbuttonWidth, (float)buttonHeight };
+    Rectangle controlbackButton = {screen_width - (screen_width/15), 0 +  (screen_height/25),MeasureText("Back", 20) + (float)screen_height/48, (float)buttonHeight };
 
     Vector2 mousePoint = {0.0f, 0.0f};
     bool exitGame = false;
@@ -342,6 +338,10 @@ int main()
                     isRebinding = true; 
                     actionbeingmod = keyaction::jump;
                 }
+                if(CheckCollisionPointRec(mousePoint, controlbackButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+                {
+                    currentState = state_setting;
+                }
 
             } break; 
         }
@@ -413,8 +413,11 @@ int main()
         }
         
 
-        if(showfps == true) {DrawFPS(75 , 10);}
-        
+        if(showfps == true) {//DrawFPS(75 , 10);
+            DrawText(TextFormat("%i FPS" , GetFPS()), 75, 10, 20, WHITE);    
+        }
+        DrawLine(1920 / 2, screen_height, 1920 / 2,  0, BLACK);
+        DrawLine(0, screen_height / 2, 1920,  screen_height/2 , BLACK);
         
 
         switch (currentState)
@@ -457,8 +460,8 @@ int main()
                 
                 DrawRectangle(0, ((int)GetScreenHeight()/2 - (backButton.y - FullscreenButton.y)), (int)GetScreenWidth(), backButton.y - FullscreenButton.y + 125,Fade(BLACK,.5f));
 
-                
-                DrawText("Settings Menu", screen_width / 2 - MeasureText("Settings Menu", 40) / 2, 120, 40, DARKGREEN);
+                DrawRectangle(screen_width/2 - ((MeasureText("Settings", 40) - screen_width/60)), screen_height/10, MeasureText("Settings",40) + screen_width / 20, screen_height/15, Fade(BLACK, .5f));
+                DrawText("Settings", screen_width / 2 - MeasureText("Settings", 40) / 2,screen_height/9 , 40, WHITE);
 
                 bool hoverToggleMode = CheckCollisionPointRec(mousePoint, ToggleModeButton);
                 DrawRectangleRec(ToggleModeButton, hoverToggleMode ? LIGHTGRAY : GRAY);
@@ -468,13 +471,13 @@ int main()
                 bool hoverFullscreen = CheckCollisionPointRec(mousePoint, FullscreenButton);
                 DrawRectangleRec(FullscreenButton, hoverFullscreen ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(FullscreenButton, 2, DARKGRAY);
-                DrawText(fsc_c, (int)(FullscreenButton.x + (SettingsbuttonWidth / 2) - MeasureText("Fullscreen", 20) / 2), (int)(FullscreenButton.y + 15), 20, hoverFullscreen ? BLACK : WHITE );
+                DrawText(fsc_c, (int)(FullscreenButton.x + (SettingsbuttonWidth / 2) - MeasureText(fsc_c, 20) / 2), (int)(FullscreenButton.y + 15), 20, hoverFullscreen ? BLACK : WHITE );
                 
 
                 bool hoverVsync = CheckCollisionPointRec(mousePoint, VsyncButton);
                 DrawRectangleRec(VsyncButton, hoverVsync ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(VsyncButton, 2, DARKGRAY);
-                DrawText(vsc_c, (int)(VsyncButton.x + (SettingsbuttonWidth / 2) - MeasureText("Vsync", 20) / 2), (int)(VsyncButton.y + 15), 20, hoverVsync ? BLACK : WHITE);
+                DrawText(vsc_c, (int)(VsyncButton.x + (SettingsbuttonWidth / 2) - MeasureText(vsc_c, 20) / 2), (int)(VsyncButton.y + 15), 20, hoverVsync ? BLACK : WHITE);
                 
 
                 bool hoverControls = CheckCollisionPointRec(mousePoint, ControlsButton);
@@ -485,7 +488,7 @@ int main()
                 bool hoverShowfps = CheckCollisionPointRec(mousePoint, ShowfpsButton);
                 DrawRectangleRec(ShowfpsButton, hoverShowfps ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(ShowfpsButton, 2, DARKGRAY);
-                DrawText(sfps_c, (int)(ShowfpsButton.x + (SettingsbuttonWidth / 2) - MeasureText("ShowFPS?", 20) / 2), (int)(ShowfpsButton.y + 15), 20, hoverShowfps ? BLACK : WHITE);
+                DrawText(sfps_c, (int)(ShowfpsButton.x + (SettingsbuttonWidth / 2) - MeasureText(sfps_c, 20) / 2), (int)(ShowfpsButton.y + 15), 20, hoverShowfps ? BLACK : WHITE);
                 
                 // Back Button
                 bool hoverBack = CheckCollisionPointRec(mousePoint, backButton);
@@ -516,6 +519,7 @@ int main()
 
             case state_controls:
             {
+                DrawRectangle(0, 0 + (screen_height/20), (int)GetScreenWidth(), screen_height - (screen_height/10) ,Fade(BLACK,.5f));
                 
                 mousesensitivityx = GuiScrollBar(scrollbounds, mousesensitivityx, minValue, maxValue);
                 DrawText(TextFormat("Mouse Sensitivity X: %i", mousesensitivityx), scrollbounds.x, scrollbounds.y + 25, 20, WHITE);
@@ -547,8 +551,12 @@ int main()
                 DrawRectangleLinesEx(jumpButton, 2, DARKGRAY);
                 DrawText(TextFormat("Jump [KEY]:  %c", keycodeConvert(keybinds.at(jump))), (int)(jumpButton.x + 10), (int)(jumpButton.y + 15), 20, hoverjump ? BLACK : WHITE);
 
+                bool hoverbackctrl = CheckCollisionPointRec(mousePoint, controlbackButton);
+                DrawRectangleRec(controlbackButton, hoverbackctrl ? LIGHTGRAY : GRAY);
+                DrawRectangleLinesEx(controlbackButton, 2, DARKGRAY);
+                DrawText("Back", (int)(controlbackButton.x + 10), (int)(controlbackButton.y + 15), 20, hoverbackctrl ? BLACK : WHITE);
+
             
-                
 
             }
             break;
