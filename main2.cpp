@@ -1,15 +1,13 @@
+
+#include "gameplay.h"
 #include "raylib.h"
 #include <iostream>
 #include <unordered_map>
-#include <functional>
-#include <cstdlib>
-#include <cmath>
-#include <vector>
 #include <fstream>
 #include <nlohmann/json.hpp>
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.h"
-//#include "gameplay.h"
+
 
 using namespace std;
 using json = nlohmann::json;
@@ -18,13 +16,20 @@ using json = nlohmann::json;
 
 
 enum GameState {
-    state_loading_screen = 0 ,
+    state_loading_screen ,
     state_menu,
     state_gameplay,
     state_paused, 
     state_skill_tree,
     state_setting,
     state_controls
+};
+
+enum GameplayState { 
+    singleplayer_worldselecter,
+    multiplayer_worldselecter,
+    create_world,
+    gameplay
 };
 
 enum keyaction {
@@ -79,7 +84,11 @@ const char* getActionName(keyaction action)
         default:                         return "Unknown";
     }
 }
-// this function allows for drawbuttons to be repeatable and easy to read in the main code
+
+float easeOutCubic(float x)
+{
+    return 1.0f - pow(1.0f - x, 3.0f);
+}
    
 
 int main()
@@ -116,17 +125,33 @@ int main()
     auto CurrentFps = GetFPS();
     GameState currentState = state_menu; 
     
+
+    //world creator variables
+    GameplayState gamestate = singleplayer_worldselecter;
+    const int menuWidth = screen_width/4;
+    const int menuHeight = screen_height/2;
+    const int worldmenux = (screen_width - menuWidth)/2;
+    const float groundY = (float)screen_height;
+    const float raisedY = (float)(screen_height - menuHeight) /2.0f;
+    float animTime = 0.0f;
+    float animSpeed = 2.0f;
+    bool menuActive = false; 
+    
+
+    
+
+    
     //music variables
     SetMasterVolume(1.0f);
     Music dayMusic = LoadMusicStream("Audio/day.mp3");
     Music NightMusic = LoadMusicStream("Audio/night.mp3");
 
     //background texture assignments
-
     Texture2D background = LoadTexture("Textures/Background.png");
     Texture2D backgroundDark = LoadTexture("Textures/BackgroundDark.png");
     Texture2D backgroundClouds = LoadTexture("Textures/Clouds2.png");   
     Texture2D backgroundCloudsDark = LoadTexture("Textures/Clouds2Dark.png");   
+    Texture2D worldCreatorBackground = LoadTexture("Textures/worldCreatorBG.jpg");
       
     float scrollingBack = -1000.0f;
     
@@ -204,14 +229,22 @@ int main()
 
     while (!WindowShouldClose() && !exitGame)
     {
+        //frame time optimization
+        float dt = GetFrameTime();
+        if(dt > 1.0f){dt = .1f;}
+
+        //alt tab optimization
+        if(!IsWindowFocused() && IsWindowFullscreen())
+        {
+            MinimizeWindow();
+        }
 
         if(vsync == true) { SetTargetFPS(MonitorRefreshRate);}
-        
-
-
         UpdateMusicStream(NightMusic);
         UpdateMusicStream(dayMusic);
 
+
+        //rebinding mode logic
         if(isRebinding)
         {
             int* keyptr = &keybinds[actionbeingmod];
@@ -222,12 +255,24 @@ int main()
             }
         }
 
-
-        //background editing 
-        scrollingBack += 10 * GetFrameTime();
-        if(scrollingBack > -500.0f) scrollingBack = -1000; 
+        //world creator menu animation logic
+        if(menuActive)
+        {
+            animTime += animSpeed * dt;
+            if(animTime > 1.0f ) animTime = 0.0f;
+        }
+        else 
+        {
+            animTime -= animSpeed * dt;
+            if(animTime< 0.0f) animTime = 0.0f;
+        }
+        float easedProgress = easeOutCubic(animTime);
+        float currentMenuY = groundY + easedProgress * (raisedY - groundY);
         
 
+        //background editing 
+        scrollingBack += 10 * dt;
+        if(scrollingBack > -500.0f) scrollingBack = -1000; 
         mousePoint = GetMousePosition();
 
         // Game Logic Switch
@@ -259,6 +304,8 @@ int main()
             
             case state_gameplay: 
             {
+                gamestate = create_world;
+                
                 if (IsKeyPressed(KEY_ESCAPE))
                 {
                     currentState = state_paused; 
@@ -311,6 +358,7 @@ int main()
                 }
             } break;
 
+            // control settings logic 
             case state_controls:
             {
                 if(CheckCollisionPointRec(mousePoint, walkdownButton) && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
@@ -413,11 +461,7 @@ int main()
         }
         
 
-        if(showfps == true) {//DrawFPS(75 , 10);
-            DrawText(TextFormat("%i FPS" , GetFPS()), 75, 10, 20, WHITE);    
-        }
-        DrawLine(1920 / 2, screen_height, 1920 / 2,  0, BLACK);
-        DrawLine(0, screen_height / 2, 1920,  screen_height/2 , BLACK);
+        
         
 
         switch (currentState)
@@ -462,29 +506,30 @@ int main()
 
                 DrawRectangle(screen_width/2 - ((MeasureText("Settings", 40) - screen_width/60)), screen_height/10, MeasureText("Settings",40) + screen_width / 20, screen_height/15, Fade(BLACK, .5f));
                 DrawText("Settings", screen_width / 2 - MeasureText("Settings", 40) / 2,screen_height/9 , 40, WHITE);
-
+                //toggle darkmode top left
                 bool hoverToggleMode = CheckCollisionPointRec(mousePoint, ToggleModeButton);
                 DrawRectangleRec(ToggleModeButton, hoverToggleMode ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(ToggleModeButton, 2, DARKGRAY);
                 DrawText("[TM]", (int)(ToggleModeButton.x + (buttonToggleWidth / 2) - MeasureText("[TM]", 20) / 2), (int)(ToggleModeButton.y + 15), 20, hoverToggleMode ? BLACK : WHITE);
-                
+                //fullscreen
                 bool hoverFullscreen = CheckCollisionPointRec(mousePoint, FullscreenButton);
                 DrawRectangleRec(FullscreenButton, hoverFullscreen ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(FullscreenButton, 2, DARKGRAY);
                 DrawText(fsc_c, (int)(FullscreenButton.x + (SettingsbuttonWidth / 2) - MeasureText(fsc_c, 20) / 2), (int)(FullscreenButton.y + 15), 20, hoverFullscreen ? BLACK : WHITE );
                 
-
+                //vsync button 
                 bool hoverVsync = CheckCollisionPointRec(mousePoint, VsyncButton);
                 DrawRectangleRec(VsyncButton, hoverVsync ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(VsyncButton, 2, DARKGRAY);
                 DrawText(vsc_c, (int)(VsyncButton.x + (SettingsbuttonWidth / 2) - MeasureText(vsc_c, 20) / 2), (int)(VsyncButton.y + 15), 20, hoverVsync ? BLACK : WHITE);
                 
-
+                //controls button --> control game state
                 bool hoverControls = CheckCollisionPointRec(mousePoint, ControlsButton);
                 DrawRectangleRec(ControlsButton, hoverControls ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(ControlsButton, 2, DARKGRAY);
                 DrawText("Controls", (int)(ControlsButton.x + (SettingsbuttonWidth / 2) - MeasureText("Controls", 20) / 2), (int)(ControlsButton.y + 15), 20, hoverControls ? BLACK : WHITE);
 
+                //showfps button
                 bool hoverShowfps = CheckCollisionPointRec(mousePoint, ShowfpsButton);
                 DrawRectangleRec(ShowfpsButton, hoverShowfps ? LIGHTGRAY : GRAY);
                 DrawRectangleLinesEx(ShowfpsButton, 2, DARKGRAY);
@@ -502,10 +547,44 @@ int main()
 
             case state_gameplay: 
             {
-                DrawRectangle(0, 0, screen_width, screen_height, DARKBLUE);
-                DrawText("GAMEPLAY ACTIVE", screen_width / 2 - MeasureText("GAMEPLAY ACTIVE", 30) / 2, screen_height / 2 - 15, 30, RAYWHITE);
-                DrawText("Press ESC to return to Main Menu", screen_width / 2 - MeasureText("Press ESC to return to Main Menu", 20) / 2, screen_height / 2 + 40, 20, LIGHTGRAY);
                 
+                switch (gamestate)
+                {
+                    case singleplayer_worldselecter:
+                    {
+                        DrawTexture(worldCreatorBackground, 0, 0, WHITE);
+                    }break;
+                    case multiplayer_worldselecter:
+                    {
+                        DrawTexture(worldCreatorBackground, 0, 0, WHITE);
+                    }break;
+                    case create_world:
+                    {
+                        DrawTexture(worldCreatorBackground, 0, 0, WHITE);
+                        //animation code for world creator menu
+                        if(menuActive != true)
+                        {
+                            menuActive = true;
+                            if()
+                        }
+                        Rectangle menuRect = {(float)worldmenux, currentMenuY, (float)menuWidth, (float)menuHeight};
+                        int shadowOffset = 8;
+                        int shadowBlur = 4;
+                        for(int i{shadowBlur};i>0;i--)
+                        {
+                            Rectangle shadowRect = {menuRect.x + (shadowOffset / 2),menuRect.y + shadowOffset, menuRect.width + i, menuRect.height + i};
+                            DrawRectangleRounded(shadowRect, 0.05f, 4, ColorAlpha(BLACK, .04f/i));
+                        }
+                        DrawRectangleRounded(menuRect, 0.05f, 4, LIGHTGRAY);
+                        DrawRectangleRoundedLines(menuRect, .05f, 4, GRAY);
+                        if(animTime > .1f)
+                        {
+                            Color textColor = ColorAlpha(DARKGRAY, easedProgress);
+
+                        }
+                        
+                    }break; 
+                }
             } break; 
 
             case state_paused:
@@ -561,6 +640,13 @@ int main()
             }
             break;
         } 
+
+        if(showfps == true) {//DrawFPS(75 , 10);
+            DrawText(TextFormat("%i FPS" , GetFPS()), 75, 10, 20, WHITE);    
+        }
+        DrawLine(1920 / 2, screen_height, 1920 / 2,  0, BLACK);
+        DrawLine(0, screen_height / 2, 1920,  screen_height/2 , BLACK);
+        
         if(IsWindowFullscreen()) { fullscreen = true;}
         else { fullscreen = false;}
         EndDrawing();

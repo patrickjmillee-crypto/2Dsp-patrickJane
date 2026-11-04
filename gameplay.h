@@ -7,12 +7,9 @@
 #include <vector>
 #include <fstream>
 #include <nlohmann/json.hpp>
-#define RAYGUI_IMPLEMENTATION
-#include "raygui.h"
 #include <chrono>
 using namespace std; 
 #pragma once 
-enum MaterialType;
 struct tile; 
 struct enchant;
 struct weapon;
